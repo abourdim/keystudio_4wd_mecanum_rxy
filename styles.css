@@ -2789,7 +2789,21 @@ body.theme-sunset { --bg: #2d1b2d; --surface: #4a2c4a; --card: #6b3a6b; --accent
   transform: scale(0.95);
   box-shadow: 0 2px 5px rgba(0,0,0,0.3), inset 0 2px 4px rgba(0,0,0,0.2), 0 0 15px rgba(102,126,234,0.5);
 }
-.dpad-center { 
+/* Mecanum pad: all nine cells are live, so there are no empty corners to
+   neutralise and the centre is a real STOP button rather than a dead hub. */
+.dpad-stop {
+  color: #ff5263;
+  font-size: clamp(9px, 2.2vw, 17px);
+}
+.dpad-stop:hover {
+  background: linear-gradient(145deg, #5a3438, #43272a);
+}
+.dpad-stop:active, .dpad-stop.active {
+  background: linear-gradient(145deg, #ff5263, #d93a4a);
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3), inset 0 2px 4px rgba(0,0,0,0.2), 0 0 15px rgba(255,82,99,0.5);
+}
+.dpad-center {
   background: linear-gradient(145deg, #1e2526, #151a1b);
   border-radius: 50%; 
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);

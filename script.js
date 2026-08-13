@@ -136,8 +136,13 @@ const MakeCodeCompiler = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           config: {
-            name: 'micro:bit Remote',
-            dependencies: { bluetooth: '*', core: '*' },
+            name: 'Keyes 4WD Mecanum Remote',
+            dependencies: {
+              bluetooth: '*',
+              core: '*',
+              microphone: '*',
+              'pxt-mecanum-robot-v2': 'github:keyestudio2019/mecanum_robot_v2'
+            },
             files: ['main.ts'],
             supportedTargets: ['microbit']
           },
@@ -2122,10 +2127,22 @@ function sendMotorMaskNow(mask) {
   motorPendingMask = mask & 15; // latest state wins
   flushMotorWrite();
 }
+// Diagonals are not a new wire concept: a corner is just the two cardinal
+// bits set at once, which handleDpadMask() already sums into nx/ny.
+const DPAD_BITS = { up: 1, down: 2, left: 4, right: 8, upleft: 1 | 4, upright: 1 | 8, downleft: 2 | 4, downright: 2 | 8 };
 function dpadBit(dir) {
-  return dir === 'up' ? 1 : dir === 'down' ? 2 : dir === 'left' ? 4 : 8;
+  return DPAD_BITS[dir] || 0;
 }
 function setDpadMotion(dir, pressed) {
+  // The centre STOP is not a direction. It clears every held bit outright,
+  // so releasing it cannot re-assert a cardinal that is still physically
+  // down — which is exactly what toggling a single bit would do here.
+  if (dir === 'stop') {
+    if (!pressed) return;
+    dpadMotionMask = 0;
+    sendMotorMaskNow(0);
+    return;
+  }
   const bit = dpadBit(dir);
   dpadMotionMask = pressed ? (dpadMotionMask | bit) : (dpadMotionMask & ~bit);
   sendMotorMaskNow(dpadMotionMask);
@@ -2319,7 +2336,7 @@ function generateDemoCode(cfg) {
         }
     }`).join('\n');
 
-  let dpadCode = dpads.map(w => `    // D-Pad: ${w.label || w.id} (val = "direction state", direction: up/down/left/right, state: 1=pressed, 0=released)
+  let dpadCode = dpads.map(w => `    // D-Pad: ${w.label || w.id} (val = "direction state", direction: up/down/left/right${w.model === 'mecanum' ? '/upleft/upright/downleft/downright/stop' : ''}, state: 1=pressed, 0=released)
     if (id == "${w.id}") {
         let parts = val.split(" ")
         let dir = parts[0]
@@ -5907,6 +5924,9 @@ async function connectBle() {
     // or from a disconnected Build preview. Wait for CFGVER/cache validation first.
     clearAllDpadKeepalives(false);
     cleanupRuntimeBindings();
+    // A demo simulation started from the Build preview must not survive into a
+    // live session, or it keeps writing sine waves over real device telemetry.
+    stopDemoSim();
     state.deviceConfig = null;
     state.config = null;
     state.runtimeCanvasSize = null;
@@ -6140,7 +6160,7 @@ var configChunks = 0;
 // remains the source of truth: a different revision automatically invalidates
 // the cache. If localStorage is unavailable/corrupt, we simply fall back to
 // GETCFG — correctness first, speed second.
-const REMOTE_CFG_CACHE_PREFIX = 'maqueen_remote_cfg_v52:';
+const REMOTE_CFG_CACHE_PREFIX = 'keyes_mecanum_cfg_k4v1:';
 let pendingCfgVersion = '';
 
 function remoteCfgCacheKey() {
@@ -7115,6 +7135,24 @@ function createRuntimeWidget(w) {
     }
 
     case 'dpad': {
+      const m = model || 'classic';
+      // Mecanum wheels can strafe, so the four corners are real directions
+      // rather than dead cells. Each corner press sets TWO bits of the same
+      // motion mask the cardinals use (up|left etc.), which the firmware
+      // already sums into nx/ny — no protocol change. The centre is a STOP.
+      if (m === 'mecanum') {
+        return `<div class="rt-dpad model-mecanum">
+        <button class="dpad-btn" data-dir="upleft" type="button">&#8598;</button>
+        <button class="dpad-btn" data-dir="up" type="button">&#9650;</button>
+        <button class="dpad-btn" data-dir="upright" type="button">&#8599;</button>
+        <button class="dpad-btn" data-dir="left" type="button">&#9664;</button>
+        <button class="dpad-btn dpad-stop" data-dir="stop" type="button">&#9632;</button>
+        <button class="dpad-btn" data-dir="right" type="button">&#9654;</button>
+        <button class="dpad-btn" data-dir="downleft" type="button">&#8601;</button>
+        <button class="dpad-btn" data-dir="down" type="button">&#9660;</button>
+        <button class="dpad-btn" data-dir="downright" type="button">&#8600;</button>
+      </div>`;
+      }
       return `<div class="rt-dpad">
         <div></div>
         <button class="dpad-btn" data-dir="up" type="button">&#9650;</button>
@@ -7722,7 +7760,11 @@ function drawGraphWidget(w){
 
   // if no data, draw frame + hint
   ctx.strokeRect(plotX, plotY, plotW, plotH);
-  if (pts.length < 2){
+  // Only a genuinely EMPTY series is "waiting". A single sample is real
+  // data — "Distance read: Read now" delivers exactly one — and refusing to
+  // plot it made a perfectly good reading look like a dead feed. One point
+  // is drawn as a dot by the series loop below.
+  if (pts.length < 1){
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.fillText('waiting for UPD...', plotX + 8, plotY + 16);
     // legend colors
@@ -7754,7 +7796,11 @@ function drawGraphWidget(w){
   const pad = (yMax - yMin) * 0.08;
   yMin -= pad; yMax += pad;
 
-  const xForT = t => plotX + ((t - t0) / span) * plotW;
+  // With a single sample t0 === t1, so the normalised position is 0 and the
+  // point would pin to the left edge. Centre it instead — it reads as "one
+  // reading", not as the start of a trace that failed to advance.
+  const single = pts.length < 2;
+  const xForT = t => single ? plotX + plotW / 2 : plotX + ((t - t0) / span) * plotW;
   const yForV = v => plotY + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
   // Y ticks
@@ -7824,6 +7870,19 @@ function drawGraphWidget(w){
       else { ctx.lineTo(x,y); }
     }
     if (started) ctx.stroke();
+
+    // A one-point path strokes nothing, so mark lone samples explicitly.
+    // Without this the graph stays visually blank after a single Read now
+    // even though the value has arrived.
+    if (single){
+      const v = pts[0].v[si];
+      if (isFinite(v)){
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.arc(xForT(pts[0].t), yForV(v), 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   });
 
   // update legend dots colors
@@ -7845,7 +7904,15 @@ function stopDemoSim(){
 
 function startDemoSim(){
   stopDemoSim();
-  
+
+  // Never simulate over a live robot. The presence test below keys off generic
+  // widget ids, and a real layout can legitimately use them — this one has a
+  // gauge_temp, so the demo started against a connected micro:bit, overwrote
+  // genuine telemetry with sine waves, and pushed updates for gauge_level and
+  // graph_env that the device layout never contained ("Widget definition not
+  // found", once per tick). A device-supplied config is never demo data.
+  if (state.ble?.connected || state.deviceConfig || state.runtimeSource === 'device') return;
+
   // Check for any demo widgets
   const hasGraph = !!document.querySelector('.rt-widget[data-id="graph_env"] [data-role="graphCanvas"]');
   const hasGauge = !!document.querySelector('.rt-widget[data-id="gauge_temp"] .rt-gauge-wrap');
