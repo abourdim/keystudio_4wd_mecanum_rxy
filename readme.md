@@ -41,6 +41,10 @@ P7 is one of the six LED-matrix pins, so the display must stay off for the strip
 
 Effects are `Solid`, `Rainbow`, `Chase` and `Sparkle`, with nine colours and a brightness slider.
 
+## Bring-up tests
+
+`firmware/tests/` holds one standalone MakeCode program per subsystem — motors, servo, ultrasonic, line sensors, NeoPixel strip, headlights, on-board sensors and a bare Bluetooth echo. Paste one into a fresh project, flash, and watch the robot; no app and no other files involved. Each header states what PASS looks like and what the common failures mean. See `firmware/tests/README.md` for the order to run them in and why.
+
 ## Run
 
 Serve this folder from `localhost` or HTTPS and open `index.html`. Web Bluetooth does not work reliably from a plain `file://` page.
