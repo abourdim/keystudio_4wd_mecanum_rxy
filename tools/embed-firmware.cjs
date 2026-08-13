@@ -42,11 +42,19 @@ if (!re.test(html)) {
 const updated = html.replace(re, block);
 
 if (check) {
-  // Compare with newlines normalised. These files live on Windows and other
-  // tools rewrite them as CRLF, while the block above is written with a plain
-  // LF -- without this, the check reports drift forever on a correct file.
+  // Compare the PAYLOAD only, with newlines normalised.
+  //
+  // Two things would otherwise produce false drift on a perfectly correct
+  // file. First, these files live on Windows and other tools rewrite them as
+  // CRLF while the block above is written with plain LF. Second, and worse:
+  // data-built comes from the source file's mtime, and git does not preserve
+  // mtimes -- a fresh clone, or a CI checkout, stamps "now". Comparing the
+  // whole block would then fail on every run for a reason nobody can act on.
   const norm = t => t.split('\r\n').join('\n');
-  const drifted = norm(updated) !== norm(html);
+  const current = html.match(re)[0]
+    .replace(/^<script[^>]*>\r?\n?/, '')
+    .replace(/<\/script>$/, '');
+  const drifted = norm(current) !== norm(payload);
   console.log(drifted
     ? 'DRIFT: index.html does not match firmware/main.ts. Run: node tools/embed-firmware.cjs'
     : 'ok: embedded firmware matches the source file');

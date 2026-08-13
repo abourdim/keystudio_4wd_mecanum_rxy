@@ -9822,7 +9822,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('fwBtn');
   if (!srcEl || !modal || !btn) return;
 
-  const source = (srcEl.textContent || '').replace(/^\n/, '');
+  // ^\r?\n, not ^\n: these files are CRLF on disk, so stripping only the \n
+  // leaves a stray carriage return at the top of the shown — and copied — code.
+  const source = (srcEl.textContent || '').replace(/^\r?\n/, '');
   document.getElementById('fwCode').textContent = source;
 
   // Read the version out of the firmware itself, so the dialog can never
