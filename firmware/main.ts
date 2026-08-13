@@ -189,10 +189,10 @@
 // Bump this on every real change and check it (serial log + LED scroll
 // at boot) to confirm what's actually flashed before debugging further —
 // no more guessing whether a fix was really re-flashed.
-const FIRMWARE_VERSION = "K4-v14"
+const FIRMWARE_VERSION = "K4-v17"
 // Temporary servo instrumentation: a boot sweep plus a per-write BLE echo.
 // Set to false to remove both once the servo fault is understood.
-const SERVO_DIAG = true
+const SERVO_DIAG = false
 
 // ── NEOPIXEL STRIP ───────────────────────────────────────────────────
 // P7, confirmed empirically by the boot pin scan on this actual board, and
@@ -228,7 +228,7 @@ const NP_DIAG = false
 // Distance instrumentation: reports the RAW ultra() value and the poll
 // gate on every tick, so "no distance" can be told apart from "poll never
 // ran". Set to false once distance is understood.
-const DIST_DIAG = true
+const DIST_DIAG = false
 
 // One-shot boot scan to IDENTIFY which pin the strip is on: it drives each
 // candidate in turn, showing the pin number on the matrix immediately
@@ -1476,11 +1476,32 @@ let nextDistDiagAt = 0
 let forceDistanceOnce = false   // v49: selector-triggered one-shot in ANY mode
 let nextLineAt = 0
 
-// Project 1's ultrasonic read, kept as a fallback because that exact code
-// returned real distances (66, 35, 51 cm) on this robot while the extension's
-// ultra() times out. Differences from mecanumRobotV2.ultra(): a 15us trigger
-// instead of 10us, an explicit PullNone on the ECHO pin (the extension only
-// sets it on the trigger), and *0.017 instead of /58 — arithmetically the same.
+// The ultrasonic read used in the earlier build of this controller, and the
+// one proven on this robot (66, 35, 51 cm then; 67 cm now). Differences from
+// mecanumRobotV2.ultra(): a 15us trigger instead of 10us, an explicit
+// PullNone on the ECHO pin (the extension only sets it on the trigger), and
+// *0.017 instead of /58 — arithmetically the same.
+//
+// Used first simply because it is the version with a track record here. An
+// earlier comment claimed the extension's ultra() "times out on this board";
+// that was wrong. Both routines returned 0 during a spell when the sensor
+// itself was disconnected, so the extension was never actually given a fair
+// test — it is kept below as a fallback rather than dismissed.
+// Is anything actually attached to the echo line? A powered HC-SR04 drives
+// ECHO low between pings, and its push-pull output beats a weak internal
+// pull-up. So: pull P16 up, read it, and put it back.
+//   0 -> something is driving the line: sensor present and powered
+//   1 -> nothing is: disconnected, or its 5V rail is dead
+// This distinguishes "sensor is there but not answering" from "no sensor",
+// which no amount of pulseIn tuning can.
+function echoIdleLevel(): number {
+    pins.setPull(DigitalPin.P16, PinPullMode.PullUp)
+    control.waitMicros(200)
+    let lvl = pins.digitalReadPin(DigitalPin.P16)
+    pins.setPull(DigitalPin.P16, PinPullMode.PullNone)
+    return lvl
+}
+
 function ultraRaw(): number {
     pins.setPull(DigitalPin.P15, PinPullMode.PullNone)
     pins.setPull(DigitalPin.P16, PinPullMode.PullNone)
@@ -1877,10 +1898,10 @@ basic.forever(function () {
         nextDistDiagAt = now + 1000
         if (!(forceDist || (autoDistDue && !busyDriving))) {
             bluetooth.uartWriteLine("DST gate busy=" + (busyDriving ? 1 : 0) + " due=" + (autoDistDue ? 1 : 0) + " int=" + distInterval)
-            // Same reasoning: "gB1" means the poll is blocked by busyDriving,
-            // "gD0" that it is not yet due. Either way the label proves the
-            // sensor is never being read, as opposed to reading zero.
-            sendUiValue("lbl_ver", FIRMWARE_VERSION + " gB" + (busyDriving ? 1 : 0) + "D" + (autoDistDue ? 1 : 0))
+            // Console only. This used to write the label too, once a second,
+            // which meant it continually overwrote the raw reading that fires
+            // on the slower poll — the label showed the gate state almost
+            // always and the actual measurement almost never.
         }
     }
     if (cfgSent && (forceDist || (autoDistDue && !busyDriving))) {
@@ -1889,11 +1910,10 @@ basic.forever(function () {
         // leaving it un-stamped outside Avoid would poll on every loop pass.
         nextDistAt = now + distInterval
         {
-            // ultraRaw() FIRST, mecanumRobotV2.ultra() only as a fallback.
-            // The extension's version returns 0 on every single poll on this
-            // board (confirmed by DST_DIAG), while this sequence read the same
-            // sensor fine in the earlier build. Trying the known-good one first
-            // also avoids burning a 35ms timeout on every reading.
+            // ultraRaw() first, mecanumRobotV2.ultra() as a fallback: the
+            // former is the routine with a proven history on this hardware,
+            // and trying it first avoids burning a 35ms timeout per reading
+            // if the other one turns out not to suit this sensor.
             let cm = ultraRaw()
             let cmAlt = 0
             if (cm <= 0) {
@@ -1906,14 +1926,20 @@ basic.forever(function () {
             // expected result), r66/66 = only the extension works, r0/0 =
             // neither echoes, which would point at the sensor itself.
             if (DIST_DIAG) {
-                bluetooth.uartWriteLine("DST raw " + cm + " alt " + cmAlt)
-                sendUiValue("lbl_ver", FIRMWARE_VERSION + " r" + cm + "/" + cmAlt)
+                let echo = echoIdleLevel()
+                bluetooth.uartWriteLine("DST raw " + cm + " alt " + cmAlt + " echo " + echo)
+                sendUiValue("lbl_ver", FIRMWARE_VERSION + " r" + cm + "/" + cmAlt + " e" + echo)
             }
             // Adapt the next interval to what we just got back. 500 is
             // the "no echo" sentinel and is the reading that costs the
             // full ~250ms retry stall, so keep backing off while it
             // persists; any real distance restores the fast rate.
-            if (cm >= 500 || cm <= 0) {
+            if (DIST_DIAG) {
+                // Backing off to 5s while diagnosing hides the very reading we
+                // are trying to see. Stay at the fast interval until the raw
+                // value is understood.
+                distInterval = DIST_INTERVAL_MS
+            } else if (cm >= 500 || cm <= 0) {
                 distInterval = Math.min(distInterval * 2, DIST_INTERVAL_MAX_MS)
             } else {
                 distInterval = DIST_INTERVAL_MS
