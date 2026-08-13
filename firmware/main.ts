@@ -3,18 +3,22 @@
  * ║            🎮 Micro:bit Remote Builder (bit-rxy) 🎮            ║
  * ║                                                                ║
  * ║   Powered by Workshop-DIY.org                                  ║
- *   Maqueen Lite: D-pad drive, servo sliders, LEDs, buzzer         ║
+ *   Keyestudio 4WD Mecanum V2: drive, servo, LEDs, strip, sensors  ║
  * ╚══════════════════════════════════════════════════════════════╝
  *
- * 📋 PROJECT: Maqueen Remote
+ * 📋 PROJECT: Keyes 4WD Mecanum Remote
  *
- * bit-rxy-generated skeleton for the "Maqueen" layout (D-pad drive,
- * STOP, Buzz, LED L/R toggles, Servo 1/2 sliders), with handleWidget()
- * filled in to drive a real DFRobot Maqueen Lite via the pxt-maqueen
- * extension.
+ * Drives a Keyestudio 4WD Mecanum robot (V2 board) through the
+ * mecanumRobotV2 extension: 8-way mecanum drive, STOP, Buzz, headlight
+ * toggles, head servo, NeoPixel strip, three line sensors, ultrasonic
+ * distance and the micro:bit's own sensors.
  *
- * The D-pad → motor mix below is ported directly from Maqueen Lab's
- * own proven drive-pad code (js/maqueen-tab.js): it boils down to a
+ * HISTORY: this firmware began as the Maqueen Lab controller and was
+ * retargeted. Where a comment credits Maqueen Lab below it is recording
+ * where a piece of logic came from, not describing this hardware.
+ *
+ * The D-pad → motor mix is ported from Maqueen Lab's proven drive-pad
+ * code (js/maqueen-tab.js): it boils down to a
  * normalized (nx, ny) vector — nx = turn (right positive), ny =
  * forward (up positive) — fed through the same differential-drive
  * formula:
@@ -30,7 +34,7 @@
  * This section records the latency investigation so the same problems
  * do not get reintroduced later. The final v43 path was reached by
  * testing each layer separately: browser pointer event → Web Bluetooth
- * write → micro:bit UART receive callback → Maqueen I2C motor write.
+ * write → micro:bit UART receive callback → I2C motor write.
  * v43 was the first build that felt immediate in real driving tests.
  *
  * 1) REMOVE ARTIFICIAL UI/QUEUE DELAYS
@@ -85,7 +89,7 @@
  *    the main loop, and debugging defaults OFF.
  *
  * 7) ULTRASONIC POLLING CAN FREEZE THE WHOLE RUNTIME
- *    pxt-maqueen Ultrasonic() retries pulseIn() when there is no echo.
+ *    An ultrasonic read retries pulseIn() when there is no echo.
  *    On open space this can busy-wait for roughly 250 ms. That freeze
  *    also freezes BLE command handling, so a perfectly fast D-pad packet
  *    still appears late. The latency build NEVER polls Ultrasonic() in
@@ -101,7 +105,7 @@
  *    link available from MakeCode.
  *
  * 9) MOTOR I2C WRITES: CHANGE IMMEDIATELY, DO NOT SPAM
- *    Maqueen motors are controlled over I2C. Generic joystick/servo code
+ *    The motors are controlled over I2C. Generic joystick/servo code
  *    still avoids redundant writes, but the D-pad hot path writes a real
  *    state change immediately. Do not restore a fixed 125 ms/8 Hz delay
  *    to handleDpadMask(); that turns directly into steering latency.
@@ -136,16 +140,18 @@
  * heartbeat semantics, and changing mode no longer changes whether the
  * connection appears alive.
  *
- * Extension required (MakeCode → Extensions):
- *   • pxt-maqueen   (https://github.com/DFRobot/pxt-maqueen)
+ * Extensions required (MakeCode → Extensions):
+ *   • mecanum_robot_v2  (https://github.com/keyestudio2019/mecanum_robot_v2)
+ *   • Bluetooth         (built in)
+ *   • Neopixel          (built in)
  *
  * 🚀 HOW TO USE:
  *    1. Copy this entire file's contents
  *    2. Go to https://makecode.microbit.org
  *    3. Create new project → Switch to JavaScript mode
- *    4. Add the pxt-maqueen extension (Extensions → search "maqueen")
+ *    4. Add the extensions listed above
  *    5. Paste this code → Download to micro:bit
- *    6. Open bit-rxy (or maqueen-rxy) and connect — the app requests
+ *    6. Open the remote app and connect — it requests
  *       the layout automatically (GETCFG) and builds the D-pad,
  *       STOP/Buzz buttons, LED toggles and servo sliders.
  *
@@ -678,7 +684,7 @@ function requestStopIcon() {
     requestGlyph(GLYPH_STOP)
 }
 
-// The Maqueen Lite motor driver is I2C-based (not direct PWM). Generic
+// The motor driver is I2C-based (not direct PWM). Generic
 // continuous controls still use change detection so they do not hammer
 // I2C with essentially identical values. HOWEVER, real-hardware latency
 // testing showed that a fixed 125 ms / 8 Hz gate is unacceptable for
@@ -934,7 +940,7 @@ function updateButtonDrive() {
 
 function handleDpadMask(mask: number) {
     if (driveMode != MODE_MANUAL) return
-    // HOT PATH: a D-pad packet goes straight to the Maqueen motor driver.
+    // HOT PATH: a D-pad packet goes straight to the motor driver.
     // Do not route through handleWidget()/dbg()/LED rendering/rate limiting.
     // Those are useful for general controls but add scheduler and BLE work
     // exactly when manual driving needs the lowest possible latency.
@@ -967,7 +973,7 @@ function handleDpadMask(mask: number) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🎮 WIDGET HANDLERS — driving real Maqueen hardware via pxt-maqueen
+// 🎮 WIDGET HANDLERS — driving the robot via mecanumRobotV2
 // ═══════════════════════════════════════════════════════════════
 
 // v44 autonomous motor path. Manual D-pad packets have their own direct
@@ -1079,7 +1085,7 @@ function handleWidget(id: string, val: string) {
     }
 
     // Slider: Servo 1 / Servo 2 — widget's min/max (0-180) already match
-    // maqueen.servoRun's angle range, so val is a direct degree value.
+    // the extension's servo range, so val is a direct degree value.
     // Same rate-limit/change-detection guard as driveMix(): dragging a
     // slider fires many rapid SET messages, and unthrottled servoRun()
     // calls at that frequency can lock up the I2C bus hard enough to
@@ -1299,7 +1305,7 @@ if (USE_MATRIX) {
     . # # # .
     `, 0)
 }
-dbg("Maqueen Remote firmware " + FIRMWARE_VERSION + " ready, waiting for BLE connection...")
+dbg("Keyes Mecanum firmware " + FIRMWARE_VERSION + " ready, waiting for BLE connection...")
 
 bluetooth.onBluetoothConnected(function () {
     btConnected = true
@@ -1450,7 +1456,7 @@ function uptimeString(totalSec: number): string {
 }
 // Ultrasonic polling cadence.
 //
-// maqueen.Ultrasonic() is the most expensive call in this firmware, and
+// The ultrasonic read is the most expensive call in this firmware, and
 // its cost depends entirely on whether an echo comes back. From the
 // library source, one readUlt() is basic.pause(1) + basic.pause(20) +
 // pins.pulseIn(..., 500*58) — a 29ms timeout. An echo returns almost at
@@ -1851,7 +1857,7 @@ basic.forever(function () {
     // ── Ultrasonic (HC-SR04) — AVOID MODE ONLY ───────────────────
     //
     // This sensor is expensive enough to define the feel of the whole
-    // robot. Measured from the pxt-maqueen source, one readUlt() is
+    // robot. Measured from the original pxt-maqueen source, one read is
     // basic.pause(1) + basic.pause(20) + pins.pulseIn(..., 500*58) — a
     // 29ms timeout, so ~50ms per attempt. With no echo Ultrasonic()
     // retries up to four more times: ~250ms per call. pulseIn BUSY-WAITS
@@ -1947,7 +1953,7 @@ basic.forever(function () {
             // Decide what we'd report; -1 means "nothing to report".
             let reported = -1
             if (cm >= 500) {
-                // pxt-maqueen's "no echo" sentinel. No echo means
+                // "no echo" sentinel. No echo means
                 // nothing bounced back, i.e. the path is CLEAR — so
                 // report the top of the gauge, not 0. Reporting 0 would
                 // read as "obstacle touching the bumper", the exact
@@ -1982,7 +1988,7 @@ basic.forever(function () {
             // series; a single series means a bare number is the payload.
             //
             // The RAW cm goes to the graph, not the mapped `reported`.
-            // `reported` folds pxt-maqueen's 500 "no echo" sentinel down
+            // `reported` folds the 500 "no echo" sentinel down
             // to DIST_MAX_CM (200), which made "nothing bounced back"
             // indistinguishable from "an object exactly 200cm away" — so
             // a sensor that never echoes looked identical to a clear

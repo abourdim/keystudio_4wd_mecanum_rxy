@@ -1891,7 +1891,7 @@ function modelOptionsForType(t){
 const bleSend = {
   isWriting: false,     // Lock: true while a write is in progress
   pendingMsg: null,     // Latest message waiting to be sent (replaces previous)
-  // maqueen-rxy deviation from stock bit-rxy: a small FIFO for discrete,
+  // Deviation from stock bit-rxy: a small FIFO for discrete,
   // must-not-drop messages (dpad press/release). pendingMsg's "latest
   // wins" coalescing is correct for continuous controls (joystick/
   // sliders) but wrong for a dpad sharing ONE widget id across 4
@@ -7378,7 +7378,7 @@ function bindRuntimeWidget(el, w) {
       const base = el.querySelector('.rt-joystick-base');
       let isDown = false;
       let resetTimer = null; // Debounce timer for reset
-      // maqueen-rxy deviation from stock bit-rxy: send raw normalized
+      // Deviation from stock bit-rxy: send raw normalized
       // nx/ny (right-positive, up-positive), scaled to -100..100 ints,
       // instead of bit-rxy's stock angle/distance polar encoding. This
       // mirrors Maqueen Lab's own proven joystick (js/maqueen-tab.js:
@@ -9810,3 +9810,56 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('DOMContentLoaded', () => {
   try { makeCanvasResizable(); setupBuildCanvasViewControls(); applyBuildCanvasView(); } catch(e) { console.warn('[BuildViewport]', e); }
 });
+
+// ── Firmware dialog ────────────────────────────────────────────────────────
+// The source is embedded in a text/plain script block rather than fetched:
+// this page is normally opened from file://, where fetch() is blocked, so a
+// runtime read would fail precisely when someone needs the code. Regenerate
+// the block with tools/embed-firmware.js after editing the firmware.
+(function initFirmwareDialog() {
+  const srcEl = document.getElementById('fwSource');
+  const modal = document.getElementById('fwModal');
+  const btn = document.getElementById('fwBtn');
+  if (!srcEl || !modal || !btn) return;
+
+  const source = (srcEl.textContent || '').replace(/^\n/, '');
+  document.getElementById('fwCode').textContent = source;
+
+  // Read the version out of the firmware itself, so the dialog can never
+  // claim a build the embedded file is not.
+  const ver = (source.match(/FIRMWARE_VERSION\s*=\s*"([^"]+)"/) || [])[1];
+  document.getElementById('fwVersion').textContent = ver || '—';
+  document.getElementById('fwBuilt').textContent = srcEl.dataset.built || '—';
+
+  const show = on => modal.classList.toggle('show', on);
+  btn.addEventListener('click', () => show(true));
+  document.getElementById('fwClose').addEventListener('click', () => show(false));
+  modal.addEventListener('click', e => { if (e.target === modal) show(false); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.classList.contains('show')) show(false);
+  });
+
+  // navigator.clipboard needs a secure context. file:// qualifies in Chrome
+  // but not everywhere, so fall back rather than failing silently.
+  async function copyText(text, label) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(label + ' copied', 'success');
+    } catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast(label + ' copied', 'success'); }
+      catch (__) { toast('Copy failed — select the text manually', 'error'); }
+      ta.remove();
+    }
+  }
+
+  document.getElementById('fwCopy').addEventListener('click', () => copyText(source, 'Firmware code'));
+  modal.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+    const el = document.querySelector(b.dataset.copy);
+    copyText(el.value !== undefined ? el.value : el.textContent, 'Text');
+  }));
+})();

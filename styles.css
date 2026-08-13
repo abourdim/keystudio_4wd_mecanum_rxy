@@ -6612,3 +6612,42 @@ body.runtime-fullscreen .runtime-view.active{
 #runtimeGrid.arrange-mode .rt-widget .rt-resize-handle{
   pointer-events:auto !important;
 }
+
+/* ── Firmware dialog ────────────────────────────────────────────────
+   Deliberately reuses .modal-bg/.modal/.modal-code/.modal-btn from the
+   existing code dialog, so only the extras below are new. */
+.hero-pill-fw { cursor: pointer; }
+.fw-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.fw-meta span {
+  padding: 5px 11px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
+  color: var(--text-dim); font-size: 12px;
+}
+.fw-meta b { color: var(--accent); font-family: 'Fira Code', Consolas, monospace; }
+.fw-lead { color: var(--text-dim); margin-bottom: 8px; }
+.fw-steps { color: var(--text-dim); margin: 0 0 16px 0; padding-left: 22px; }
+.fw-steps li { margin-bottom: 5px; }
+.fw-steps b { color: var(--text); }
+.fw-note { border-radius: 14px; padding: 13px 15px; margin-bottom: 13px; border: 1px solid; }
+.fw-note-ext { border-color: rgba(255,145,0,.45); background: rgba(255,145,0,.10); }
+.fw-note-ble { border-color: rgba(0,153,255,.45); background: rgba(0,153,255,.10); }
+.fw-note-title { font-weight: 800; margin-bottom: 9px; font-size: 13px; }
+.fw-note-ext .fw-note-title { color: var(--secondary); }
+.fw-note-ble .fw-note-title { color: var(--accent); }
+.fw-note-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fw-note-sub { margin-top: 8px; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.fw-note-sub b { color: var(--text); }
+.fw-note-sub code { background: rgba(0,0,0,.35); border-radius: 5px; padding: 1px 5px; }
+.fw-note input {
+  flex: 1 1 260px; min-width: 0; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.30);
+  color: var(--text); font-family: 'Fira Code', Consolas, monospace; font-size: 12px;
+}
+.fw-cfg {
+  margin: 0 0 9px; padding: 12px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.10); background: rgba(0,0,0,.35);
+  color: var(--green); font-family: 'Fira Code', Consolas, monospace;
+  font-size: 12px; line-height: 1.45; white-space: pre; overflow-x: auto;
+}
+.modal-btn.fw-mini { flex: 0 0 auto; padding: 8px 14px; font-size: 13px; }
+#fwCode { max-height: 42vh; white-space: pre; word-break: normal; }
