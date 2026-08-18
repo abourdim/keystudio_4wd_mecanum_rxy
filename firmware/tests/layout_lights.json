@@ -93,6 +93,7 @@
    "w": 580,
    "h": 70,
    "label": "Switch the lamps on, then pick a colour for the strip.",
+   "value": "Switch the lamps on, then pick a colour for the strip.",
    "model": "card"
   }
  ],

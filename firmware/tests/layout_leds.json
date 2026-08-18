@@ -43,6 +43,7 @@
    "w": 340,
    "h": 70,
    "label": "Switch each lamp on and off. They are the cheapest thing on the robot.",
+   "value": "Switch each lamp on and off. They are the cheapest thing on the robot.",
    "model": "card"
   }
  ],

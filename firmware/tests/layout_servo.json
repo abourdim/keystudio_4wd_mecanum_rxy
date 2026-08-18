@@ -54,6 +54,7 @@
    "w": 410,
    "h": 70,
    "label": "Slide it. The sensor head should turn to match the number.",
+   "value": "Slide it. The sensor head should turn to match the number.",
    "model": "card"
   }
  ],

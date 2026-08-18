@@ -119,6 +119,7 @@
    "w": 570,
    "h": 70,
    "label": "Clap, tilt the robot, press A and B. Everything should move.",
+   "value": "Clap, tilt the robot, press A and B. Everything should move.",
    "model": "card"
   }
  ],

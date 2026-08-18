@@ -60,6 +60,7 @@
    "w": 400,
    "h": 70,
    "label": "Slide black tape under the robot. The light above it should change.",
+   "value": "Slide black tape under the robot. The light above it should change.",
    "model": "card"
   }
  ],

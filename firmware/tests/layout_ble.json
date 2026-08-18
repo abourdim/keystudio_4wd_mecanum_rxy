@@ -56,6 +56,7 @@
    "w": 490,
    "h": 70,
    "label": "If the uptime counts and Beep makes a sound, the link works.",
+   "value": "If the uptime counts and Beep makes a sound, the link works.",
    "model": "card"
   }
  ],

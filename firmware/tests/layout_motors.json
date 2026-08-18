@@ -76,6 +76,7 @@
    "w": 610,
    "h": 70,
    "label": "Press an arrow. The robot moves that way. The corners go diagonally.",
+   "value": "Press an arrow. The robot moves that way. The corners go diagonally.",
    "model": "card"
   }
  ],

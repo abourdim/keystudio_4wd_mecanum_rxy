@@ -29,7 +29,11 @@ def panel(title, label, color, members, hint):
                children=[m["id"] for m in members])
     for m in members:
         m["groupId"] = "grp_test"
-    note = W("lbl_hint", "label", x1, y2 + 40, min(760, x2 - x1), 70, hint, model="card")
+    # The hint must go in `value`, not only `label`. The runtime renders a label
+    # as `val || label`, and getRuntimeWidgetValue() falls back to the STRING "0"
+    # when nothing has been sent -- which is truthy, so the label fallback never
+    # fires. lbl_hint never receives an UPD, so it would read "0" forever.
+    note = W("lbl_hint", "label", x1, y2 + 40, min(760, x2 - x1), 70, hint, value=hint, model="card")
     widgets = [grp] + members + [note]
     cfg = {"title": title, "widgets": widgets,
            "canvas": {"w": max(w["x"] + w["w"] for w in widgets) + 56,
