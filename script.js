@@ -1,7 +1,7 @@
 // Bumped on every push to this repo — shown in the header next to the
 // subtitle. Simple incrementing build number, not semver: there's no
 // meaningful "breaking change" concept for a single-page kid tool.
-const APP_VERSION = 'v2.15';
+const APP_VERSION = 'v2.16';
 
 window.__ovl = window.__ovl || { t:null };
 
@@ -4812,6 +4812,32 @@ function widgetChildren(group, widgets = state.widgets) {
   if (!group || group.t !== 'group') return [];
   const ids = Array.isArray(group.children) ? group.children : [];
   return ids.map(id => widgets.find(w => w.id === id)).filter(Boolean);
+}
+
+// Restored. These were added in 0b15820 and removed by 3cb894b, which left all
+// seven call sites intact -- so dragging a group, or deleting one, threw a
+// ReferenceError in Build mode. That is exactly the 'a zone drags as one unit'
+// behaviour the K4-v18 layout commit advertised.
+
+function moveGroupChildren(group, dx, dy, widgets = state.widgets, rootSelector = '.widget') {
+  if (!group || group.t !== 'group' || (!dx && !dy)) return;
+  widgetChildren(group, widgets).forEach(child => {
+    child.x = Math.max(0, Number(child.x || 0) + dx);
+    child.y = Math.max(0, Number(child.y || 0) + dy);
+    const el = document.querySelector(`${rootSelector}[data-id="${CSS.escape(child.id)}"]`);
+    if (el) {
+      el.style.left = child.x + 'px';
+      el.style.top = child.y + 'px';
+    }
+  });
+}
+
+function detachGroup(group, widgets = state.widgets) {
+  if (!group || group.t !== 'group') return;
+  widgetChildren(group, widgets).forEach(child => {
+    if (child.groupId === group.id) delete child.groupId;
+  });
+  group.children = [];
 }
 
 function normalizeGroupMembership(widgets = state.widgets) {
