@@ -43,7 +43,13 @@ Effects are `Solid`, `Rainbow`, `Chase` and `Sparkle`, with nine colours and a b
 
 ## Bring-up tests
 
-`firmware/tests/` holds one standalone MakeCode program per subsystem — motors, servo, ultrasonic, line sensors, NeoPixel strip, headlights, on-board sensors and a bare Bluetooth echo. Paste one into a fresh project, flash, and watch the robot; no app and no other files involved. Each header states what PASS looks like and what the common failures mean. See `firmware/tests/README.md` for the order to run them in and why.
+`firmware/tests/` holds one standalone MakeCode program per subsystem — motors, servo, ultrasonic, line sensors, NeoPixel strip, headlights, on-board sensors and a bare Bluetooth echo. Paste one into a fresh project, flash, and watch the robot; no app and no other files involved. Each header states what PASS looks like and what the common failures mean.
+
+Each also has an **app-driven twin**, `test-app-*.ts`, which carries its own small layout and sends it over the link — press Connect and a panel for that one subsystem appears, with no import step. That is what makes the tests usable by children: they drive the wheels or mix a strip colour themselves instead of watching a fixed sequence.
+
+Run `test-app-ble.ts` first. Every other panel depends on the radio, so if that one fails the rest tell you nothing about the robot; it touches no robot hardware at all. And when a panel appears but nothing moves, run the plain twin — those have no Bluetooth, which is exactly what separates a dead subsystem from a dead link.
+
+Panels are generated rather than hand-written (`gen_test_layouts.py` → `gen_app_tests.py`), so a layout cannot drift from the code that serves it. See `firmware/tests/README.md` for the order to run them in and why.
 
 ## Run
 

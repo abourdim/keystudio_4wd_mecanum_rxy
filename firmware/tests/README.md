@@ -42,3 +42,68 @@ Work outward from what needs least. If an early test fails, later ones will too 
 ## Reading a failure
 
 Each file's header comment lists what **PASS** looks like and what the common **FAIL** modes mean. Start there rather than from the symptom — several distinct faults present identically from across the room, which is the whole reason these files exist.
+
+---
+
+# App-driven tests (`test-app-*.ts`)
+
+The same subsystems, but controlled by a child from the phone instead of
+watched on the display. Each file is still **one complete standalone MakeCode
+program** — paste, flash, press Connect, and its panel appears by itself. The
+layout travels inside the file and is sent over the link, so there is nothing
+to import into the app.
+
+Open with:
+`file:///D:/work/dev/16_workshop/99_software/29/keystudio_4wd_mecanum_rxy/index.html`
+
+| # | File | Extensions | Panel |
+|---|---|---|---|
+| 1 | `test-app-ble.ts` | bluetooth | uptime counts, Beep sounds |
+| 2 | `test-app-leds.ts` | mecanum_robot_v2, bluetooth | two lamp switches |
+| 3 | `test-app-motors.ts` | mecanum_robot_v2, bluetooth | mecanum D-pad, Speed, STOP |
+| 4 | `test-app-servo.ts` | mecanum_robot_v2, bluetooth | head angle slider + gauge |
+| 5 | `test-app-distance.ts` | mecanum_robot_v2, bluetooth | distance, graph, obstacle |
+| 6 | `test-app-line.ts` | mecanum_robot_v2, bluetooth | three sensor lights |
+| 7 | `test-app-lights.ts` | mecanum_robot_v2, neopixel, bluetooth | lamps + strip colour |
+| 8 | `test-app-microbit.ts` | bluetooth, microphone | sound, temp, tilt, buttons |
+
+## Order to run them
+
+**`test-app-ble.ts` first, always.** Every other panel needs the link, so if
+that one does not work the rest tell you nothing about the robot. It touches no
+robot hardware at all — if the uptime climbs and Beep sounds, the radio is
+fine and any later failure is the subsystem.
+
+Then work outward as before: lamps, motors, head, sensors.
+
+## When a panel appears but nothing happens
+
+Run the matching plain test — `test-motors.ts`, `test-servo.ts` and so on.
+Those have **no Bluetooth at all**, so they separate a dead subsystem from a
+dead link. That is the whole reason the plain tests still exist alongside
+these, and why they are worth keeping rather than replacing.
+
+## Two constraints these inherit from the real firmware
+
+**The display is off in `test-app-line.ts` and `test-app-lights.ts`.** The line
+sensors (P3, P4, P10) and the strip (P7) are LED-matrix pins, so the matrix must
+be disabled or they misbehave. Those two report through the **left headlight**
+instead: lit while connected.
+
+**The layout is sent from the main loop, never from the Bluetooth receive
+handler.** Doing it in the handler blocks the BLE stack for the whole transfer
+and the connection never finishes — the failure documented at length in
+`main.ts`. If you adapt these, keep that structure.
+
+## Regenerating
+
+The panels are generated, not hand-written, so a layout change cannot drift
+from the code that serves it:
+
+```
+python3 gen_test_layouts.py    # panels -> layout_*.json + layouts_b64.txt
+python3 gen_app_tests.py       # -> test-app-*.ts with the CFG embedded
+```
+
+Widget ids match `main.ts` deliberately, so each handler here is the real one
+rather than a lookalike that can drift.
