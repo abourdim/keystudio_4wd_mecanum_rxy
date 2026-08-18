@@ -1,7 +1,7 @@
 // Bumped on every push to this repo — shown in the header next to the
 // subtitle. Simple incrementing build number, not semver: there's no
 // meaningful "breaking change" concept for a single-page kid tool.
-const APP_VERSION = 'v2.13';
+const APP_VERSION = 'v2.14';
 
 window.__ovl = window.__ovl || { t:null };
 
@@ -6140,6 +6140,10 @@ function updateBleUI() {
 
 let configBuffer = '';
 var configChunks = 0;
+// Total chunk count announced by "CFGBEGIN <n>". 0 means the firmware did not
+// say (older builds, or the micro:bit), in which case the progress bar falls
+// back to the old open-ended guess.
+var configTotal = 0;
 
 // ═══════════════════════════════════════════════════════════════
 // ⚡ v47 CONFIG REVISION CACHE
@@ -6462,7 +6466,11 @@ function processLine(line) {
     }
   }
   else if (line.startsWith('CFGBEGIN')) {
-    console.log('[BLE] Config begin');
+    // Firmware may append the chunk count: "CFGBEGIN 228". Anything that does
+    // not send it still matches this branch, so configTotal simply stays 0.
+    const announced = parseInt(line.slice(8).trim(), 10);
+    configTotal = Number.isFinite(announced) && announced > 0 ? announced : 0;
+    console.log('[BLE] Config begin, expecting', configTotal || 'unknown', 'chunks');
     cancelConfigRetry();   // firmware answered — stop the retry timer
     configBuffer = '';
     configChunks = 0;
@@ -6474,7 +6482,15 @@ function processLine(line) {
     cancelConfigRetry();
     configBuffer += line.substring(4);
     configChunks++;
-    setLoadingProgress(Math.min(90, 12 + configChunks * 4), `${tr('loadingReceiving')} (${configChunks})`);
+    // With a known total this is a true fraction of the transfer. Without one
+    // the old guess (12 + 4/chunk) is kept, but that pins at 90% after chunk 20
+    // and a big layout can be 200+ chunks, which reads as a stalled bar.
+    if (configTotal > 0) {
+      const pct = 12 + Math.round(78 * Math.min(1, configChunks / configTotal));
+      setLoadingProgress(pct, `${tr('loadingReceiving')} (${configChunks} / ${configTotal})`);
+    } else {
+      setLoadingProgress(Math.min(90, 12 + configChunks * 4), `${tr('loadingReceiving')} (${configChunks})`);
+    }
     console.log('[BLE] Config chunk, total length:', configBuffer.length);
   }
   else if (line === 'CFGEND') {
