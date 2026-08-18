@@ -188,14 +188,14 @@
  *    App → micro:bit   <a..p> + newline        (FAST D-pad: 1-byte mask)
  *    App → micro:bit   SET <widgetId> <value...>
  *    App → micro:bit   GETCFG                 (asks for the layout once, on connect)
- *    micro:bit → App   CFGBEGIN / CFG <b64 chunk> / CFGEND
+ *    micro:bit → App   CFGBEGIN <chunkCount> / CFG <b64 chunk> / CFGEND
  *    micro:bit → App   UPD <widgetId> <value>  (optional — push sensor/status updates)
  */
 
 // Bump this on every real change and check it (serial log + LED scroll
 // at boot) to confirm what's actually flashed before debugging further —
 // no more guessing whether a fix was really re-flashed.
-const FIRMWARE_VERSION = "K4-v18"
+const FIRMWARE_VERSION = "K4-v19"
 // Temporary servo instrumentation: a boot sweep plus a per-write BLE echo.
 // Set to false to remove both once the servo fault is understood.
 const SERVO_DIAG = false
@@ -1641,7 +1641,12 @@ basic.forever(function () {
     if (btConnected && cfgTxActive) {
         if (now >= cfgTxNextAt) {
             if (cfgTxStage == 0) {
-                bluetooth.uartWriteLine("CFGBEGIN")
+                // Announce how many chunks are coming. The app matches this line
+                // with startsWith(), so a client that does not read the count is
+                // unaffected -- but one that does can show a truthful progress
+                // bar instead of guessing. The same total is already computed
+                // below for the LED sweep, so this costs nothing new.
+                bluetooth.uartWriteLine("CFGBEGIN " + Math.idiv(CFG.length + 17, 18))
                 cfgTxStage = 1
                 cfgTxNextAt = now + CFG_TX_GAP_MS
             } else if (cfgTxStage == 1) {
