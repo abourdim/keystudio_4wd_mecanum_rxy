@@ -64,11 +64,16 @@ const POLL_MS = %(POLL)d
 // here -- see the forever loop below.
 bluetooth.onUartDataReceived(serial.delimiters(Delimiters.NewLine), function () {
     let cmd = bluetooth.uartReadUntil(serial.delimiters(Delimiters.NewLine))
+    // Chained if/else-if with no `return` inside this lambda, matching the
+    // shape main.ts uses. Getting here took two wrong guesses at a MakeCode
+    // "!!proc || !bin.finalPass" error that points at the line below and says
+    // nothing useful; what actually broke the build was a syntax error further
+    // down. This shape is kept because it matches the firmware that is known
+    // to compile, NOT because early returns are proven to cause that error.
     if (cmd == "GETCFG") {
         cfgWanted = true
-        return
     }
-%(RAW)s    if (cmd.indexOf("SET ") == 0) {
+%(RAW)s    else if (cmd.indexOf("SET ") == 0) {
         let parts = cmd.substr(4).split(" ")
         let id = parts[0]
         let val = parts.length > 1 ? parts[1] : ""
@@ -118,7 +123,6 @@ let lastSec = -1
 ''',
     SETS='''        if (id == "btn_buzz" && val == "1") {
             music.playTone(988, music.beat(BeatFraction.Sixteenth))
-            return
         }
 ''',
     ONCFGEND='            bluetooth.uartWriteLine("UPD lbl_ver " + FIRMWARE_VERSION)\n',
@@ -145,11 +149,9 @@ T["leds"] = dict(
     MATRIX="", RAW="", HELPERS="",
     SETS='''        if (id == "toggle_led_l") {
             mecanumRobotV2.setLed(LedCount.Left, val == "1" ? LedState.ON : LedState.OFF)
-            return
         }
-        if (id == "toggle_led_r") {
+        else if (id == "toggle_led_r") {
             mecanumRobotV2.setLed(LedCount.Right, val == "1" ? LedState.ON : LedState.OFF)
-            return
         }
 ''',
     ONCFGEND="", POLLBODY="",
@@ -165,9 +167,8 @@ T["motors"] = dict(
     PANEL="MOTORS", THING="motor", POLL=0,
     PASS="each arrow moves the robot that way, the corners strafe diagonally,\n *       STOP halts it, and Speed changes how fast.",
     MATRIX="",
-    RAW='''    if (cmd.length == 1 && cmd.charCodeAt(0) >= 97 && cmd.charCodeAt(0) <= 112) {
+    RAW='''    else if (cmd.length == 1 && cmd.charCodeAt(0) >= 97 && cmd.charCodeAt(0) <= 112) {
         handleDpadMask(cmd.charCodeAt(0) - 97)
-        return
     }
 ''',
     HELPERS='''let driveSpeed = 78
@@ -218,31 +219,28 @@ function handleDpadMask(mask: number) {
 ''',
     SETS='''        if (id == "btn_stop" && val == "1") {
             mecanumRobotV2.state()
-            return
         }
-        if (id == "spd") {
+        else if (id == "spd") {
             driveSpeed = Math.constrain(parseInt(val), 24, 100)
             bluetooth.uartWriteLine("UPD gauge_spd " + driveSpeed)
-            return
         }
-        if (id == "dpad_move") {
+        else if (id == "dpad_move") {
             // Text form, for the stock bit-rxy app which sends no mask byte.
             let pressed = parts.length > 2 && parts[2] == "1"
             let mask = 0
             if (val == "up" && pressed) {
                 mask = 1
             }
-            if (val == "down" && pressed) {
+            else if (val == "down" && pressed) {
                 mask = 2
             }
-            if (val == "left" && pressed) {
+            else if (val == "left" && pressed) {
                 mask = 4
             }
-            if (val == "right" && pressed) {
+            else if (val == "right" && pressed) {
                 mask = 8
             }
             handleDpadMask(mask)
-            return
         }
 ''',
     ONCFGEND='            bluetooth.uartWriteLine("UPD gauge_spd " + driveSpeed)\n',
@@ -270,7 +268,6 @@ function head(angle: number) {
             let angle = Math.constrain(parseInt(val), 0, 180)
             head(angle)
             bluetooth.uartWriteLine("UPD gauge_srv1 " + angle)
-            return
         }
 ''',
     ONCFGEND='            bluetooth.uartWriteLine("UPD gauge_srv1 90")\n',
@@ -378,23 +375,19 @@ function paint() {
 ''',
     SETS='''        if (id == "toggle_led_l") {
             mecanumRobotV2.setLed(LedCount.Left, val == "1" ? LedState.ON : LedState.OFF)
-            return
         }
-        if (id == "toggle_led_r") {
+        else if (id == "toggle_led_r") {
             mecanumRobotV2.setLed(LedCount.Right, val == "1" ? LedState.ON : LedState.OFF)
-            return
         }
-        if (id == "toggle_np") {
+        else if (id == "toggle_np") {
             npOn = val == "1"
             paint()
-            return
         }
-        if (id == "np_bright") {
+        else if (id == "np_bright") {
             npBright = Math.constrain(parseInt(val), 0, 255)
             paint()
-            return
         }
-        if (id == "np_color") {
+        else if (id == "np_color") {
             // The app sends the option TEXT, so match names, not an index.
             if (val == "Red") {
                 npColour = neopixel.colors(NeoPixelColors.Red)
@@ -416,7 +409,6 @@ function paint() {
                 npColour = neopixel.colors(NeoPixelColors.White)
             }
             paint()
-            return
         }
 ''',
     ONCFGEND="", POLLBODY="",

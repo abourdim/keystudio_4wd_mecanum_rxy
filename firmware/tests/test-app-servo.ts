@@ -44,11 +44,16 @@ function head(angle: number) {
 // here -- see the forever loop below.
 bluetooth.onUartDataReceived(serial.delimiters(Delimiters.NewLine), function () {
     let cmd = bluetooth.uartReadUntil(serial.delimiters(Delimiters.NewLine))
+    // Chained if/else-if with no `return` inside this lambda, matching the
+    // shape main.ts uses. Getting here took two wrong guesses at a MakeCode
+    // "!!proc || !bin.finalPass" error that points at the line below and says
+    // nothing useful; what actually broke the build was a syntax error further
+    // down. This shape is kept because it matches the firmware that is known
+    // to compile, NOT because early returns are proven to cause that error.
     if (cmd == "GETCFG") {
         cfgWanted = true
-        return
     }
-    if (cmd.indexOf("SET ") == 0) {
+    else if (cmd.indexOf("SET ") == 0) {
         let parts = cmd.substr(4).split(" ")
         let id = parts[0]
         let val = parts.length > 1 ? parts[1] : ""
@@ -56,7 +61,6 @@ bluetooth.onUartDataReceived(serial.delimiters(Delimiters.NewLine), function () 
             let angle = Math.constrain(parseInt(val), 0, 180)
             head(angle)
             bluetooth.uartWriteLine("UPD gauge_srv1 " + angle)
-            return
         }
     }
 })

@@ -81,45 +81,46 @@ function handleDpadMask(mask: number) {
 // here -- see the forever loop below.
 bluetooth.onUartDataReceived(serial.delimiters(Delimiters.NewLine), function () {
     let cmd = bluetooth.uartReadUntil(serial.delimiters(Delimiters.NewLine))
+    // Chained if/else-if with no `return` inside this lambda, matching the
+    // shape main.ts uses. Getting here took two wrong guesses at a MakeCode
+    // "!!proc || !bin.finalPass" error that points at the line below and says
+    // nothing useful; what actually broke the build was a syntax error further
+    // down. This shape is kept because it matches the firmware that is known
+    // to compile, NOT because early returns are proven to cause that error.
     if (cmd == "GETCFG") {
         cfgWanted = true
-        return
     }
-    if (cmd.length == 1 && cmd.charCodeAt(0) >= 97 && cmd.charCodeAt(0) <= 112) {
+    else if (cmd.length == 1 && cmd.charCodeAt(0) >= 97 && cmd.charCodeAt(0) <= 112) {
         handleDpadMask(cmd.charCodeAt(0) - 97)
-        return
     }
-    if (cmd.indexOf("SET ") == 0) {
+    else if (cmd.indexOf("SET ") == 0) {
         let parts = cmd.substr(4).split(" ")
         let id = parts[0]
         let val = parts.length > 1 ? parts[1] : ""
         if (id == "btn_stop" && val == "1") {
             mecanumRobotV2.state()
-            return
         }
-        if (id == "spd") {
+        else if (id == "spd") {
             driveSpeed = Math.constrain(parseInt(val), 24, 100)
             bluetooth.uartWriteLine("UPD gauge_spd " + driveSpeed)
-            return
         }
-        if (id == "dpad_move") {
+        else if (id == "dpad_move") {
             // Text form, for the stock bit-rxy app which sends no mask byte.
             let pressed = parts.length > 2 && parts[2] == "1"
             let mask = 0
             if (val == "up" && pressed) {
                 mask = 1
             }
-            if (val == "down" && pressed) {
+            else if (val == "down" && pressed) {
                 mask = 2
             }
-            if (val == "left" && pressed) {
+            else if (val == "left" && pressed) {
                 mask = 4
             }
-            if (val == "right" && pressed) {
+            else if (val == "right" && pressed) {
                 mask = 8
             }
             handleDpadMask(mask)
-            return
         }
     }
 })
