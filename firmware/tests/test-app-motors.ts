@@ -34,17 +34,22 @@ const POLL_MS = 0
 
 let driveSpeed = 78
 
-function drive(wheel: M, value: number) {
+function drive(wheel: LR, value: number) {
     mecanumRobotV2.Motor(wheel, value >= 0 ? MD.Forward : MD.Back, Math.abs(value))
 }
 
+// Mecanum mixing, NOT tank mixing. Each wheel gets its own sign, which is what
+// lets the chassis strafe sideways instead of just turning. The signs match
+// test-motors.ts, where strafe left is -1, 1, 1, -1 and strafe right is the
+// mirror of it; feeding both left wheels the same value would spin the robot
+// on the spot and the diagonal buttons would do nothing useful.
 function runMecanum(nx: number, ny: number) {
-    let l = Math.constrain((ny + nx) * driveSpeed, -driveSpeed, driveSpeed)
-    let r = Math.constrain((ny - nx) * driveSpeed, -driveSpeed, driveSpeed)
-    drive(M.M1, l)
-    drive(M.M2, l)
-    drive(M.M3, r)
-    drive(M.M4, r)
+    let a = Math.constrain((ny + nx) * driveSpeed, -driveSpeed, driveSpeed)
+    let b = Math.constrain((ny - nx) * driveSpeed, -driveSpeed, driveSpeed)
+    drive(LR.Upper_left, a)
+    drive(LR.Lower_left, b)
+    drive(LR.Upper_right, b)
+    drive(LR.Lower_right, a)
 }
 
 // The app sends the COMPLETE 4-bit button state as one byte 'a'..'p', so a
