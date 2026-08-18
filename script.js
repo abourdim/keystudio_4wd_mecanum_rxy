@@ -1,7 +1,7 @@
 // Bumped on every push to this repo — shown in the header next to the
 // subtitle. Simple incrementing build number, not semver: there's no
 // meaningful "breaking change" concept for a single-page kid tool.
-const APP_VERSION = 'v2.14';
+const APP_VERSION = 'v2.15';
 
 window.__ovl = window.__ovl || { t:null };
 
@@ -784,7 +784,7 @@ const I18N = {
     loadingTitle: "🧩 Loading your remote...",
     loadingSub: "Getting layout from micro:bit",
     loadingRequesting: "Checking layout version…",
-    loadingReceiving: "Receiving layout…",
+    loadingReceiving: "Receiving layout…", loadingOf: "of",
     loadingDecoding: "Decoding layout…",
     loadingReady: "Ready!",
     codeModal: {
@@ -905,7 +905,7 @@ const I18N = {
     loadingTitle: "🧩 Chargement de ta télécommande...",
     loadingSub: "Récupération depuis le micro:bit",
     loadingRequesting: "Vérification de la version de la disposition…",
-    loadingReceiving: "Réception de la disposition…",
+    loadingReceiving: "Réception de la disposition…", loadingOf: "sur",
     loadingDecoding: "Décodage de la disposition…",
     loadingReady: "Prêt !",
     codeModal: {
@@ -1026,7 +1026,7 @@ const I18N = {
     loadingTitle: "🧩 جارٍ تحميل جهاز التحكم...",
     loadingSub: "الحصول على التخطيط من micro:bit",
     loadingRequesting: "جارٍ التحقق من إصدار التخطيط…",
-    loadingReceiving: "جارٍ استقبال التخطيط…",
+    loadingReceiving: "جارٍ استقبال التخطيط…", loadingOf: "من",
     loadingDecoding: "جارٍ فك ترميز التخطيط…",
     loadingReady: "جاهز!",
     codeModal: {
@@ -6487,7 +6487,7 @@ function processLine(line) {
     // and a big layout can be 200+ chunks, which reads as a stalled bar.
     if (configTotal > 0) {
       const pct = 12 + Math.round(78 * Math.min(1, configChunks / configTotal));
-      setLoadingProgress(pct, `${tr('loadingReceiving')} (${configChunks} / ${configTotal})`);
+      setLoadingProgress(pct, `${tr('loadingReceiving')} (${configChunks} ${tr('loadingOf')} ${configTotal})`);
     } else {
       setLoadingProgress(Math.min(90, 12 + configChunks * 4), `${tr('loadingReceiving')} (${configChunks})`);
     }
